@@ -1,0 +1,1 @@
+# predictionmarket-app-scanner
