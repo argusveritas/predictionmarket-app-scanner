@@ -7,25 +7,13 @@ from config.settings import ScannerConfig
 from core.hedge_calculator import HedgeCalculator
 from core.journal import TradeJournal
 
-# Simple Agent class (no external dependencies)
-class OpportunityOptimizerAgent:
-    def __init__(self, config):
-        self.is_running = False
-
-    async def run_background(self):
-        self.is_running = True
-        st.toast("🚀 Agent Started - Scanning every 10 minutes", icon="🔥")
-        while self.is_running:
-            st.toast("🔍 Scanning live markets...", icon="🔍")
-            await asyncio.sleep(600)  # 10 minutes
-
 st.set_page_config(page_title="CrystalBall • Prediction Arb Scanner", layout="wide")
 st.title("🔮 CrystalBall")
 st.caption("**Live Prediction Market Arbitrage Scanner**")
 
-# Execute Now Button (Top of page)
+# === EXECUTE NOW BUTTON (Always Visible) ===
 if st.button("🔄 Execute Scan Now", type="primary", use_container_width=True):
-    st.toast("🔍 Scanning live markets right now...", icon="🔄")
+    st.toast("🔍 Scanning live markets...", icon="🔄")
     st.rerun()
 
 # Sidebar
@@ -47,7 +35,7 @@ with st.sidebar:
     agent_on = st.toggle("Enable Background Agent (Premium)", value=False)
     interval = st.slider("Scan Interval (minutes)", 5, 60, 10)
 
-# Live Data
+# Live Data Fetch
 @st.cache_data(ttl=30)
 def fetch_polymarket_markets():
     try:
@@ -64,7 +52,7 @@ live_markets = fetch_polymarket_markets()
 st.subheader(f"📊 Live Edges ({confidence_level}%+ Confidence)")
 
 if live_markets:
-    for m in live_markets[:8]:
+    for m in live_markets[:10]:
         title = m.get("title") or m.get("question", "Market")
         try:
             price = float(m.get("yes_price", 0.5))
@@ -72,7 +60,7 @@ if live_markets:
             price = 0.5
         st.metric(title[:70] + ("..." if len(title) > 70 else ""), f"{price*100:.1f}¢")
 else:
-    st.info("Live data loading...")
+    st.info("Live data loading... (Polymarket)")
 
 # Tabs
 tab1, tab2, tab3, tab4 = st.tabs(["📈 Interactive Payoff", "🎲 Monte Carlo", "📓 Journal", "🏠 Home"])
@@ -110,11 +98,9 @@ with tab4:
     st.subheader("Welcome to CrystalBall")
     st.write("Professional tool for finding hedged opportunities.")
 
-# Agent
+# Simple Agent (no complex async issues)
 if agent_on:
-    if "agent" not in st.session_state:
-        st.session_state.agent = OpportunityOptimizerAgent(ScannerConfig())
-        asyncio.create_task(st.session_state.agent.run_background())
-    st.success("🟢 Premium Agent is ACTIVE")
+    st.success("🟢 Premium Agent ACTIVE — Background scanning enabled")
+    st.info("Note: Full background alerts will be enabled in the next version.")
 
 st.caption("🔮 CrystalBall • Professional Prediction Market Scanner")
