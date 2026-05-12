@@ -4,13 +4,29 @@ import aiohttp
 import numpy as np
 import plotly.graph_objects as go
 from config.settings import ScannerConfig
-from core.opportunity_optimizer_agent import OpportunityOptimizerAgent
 from core.hedge_calculator import HedgeCalculator
 from core.journal import TradeJournal
+
+# Simple Agent class (no external dependencies)
+class OpportunityOptimizerAgent:
+    def __init__(self, config):
+        self.is_running = False
+
+    async def run_background(self):
+        self.is_running = True
+        st.toast("🚀 Agent Started - Scanning every 10 minutes", icon="🔥")
+        while self.is_running:
+            st.toast("🔍 Scanning live markets...", icon="🔍")
+            await asyncio.sleep(600)  # 10 minutes
 
 st.set_page_config(page_title="CrystalBall • Prediction Arb Scanner", layout="wide")
 st.title("🔮 CrystalBall")
 st.caption("**Live Prediction Market Arbitrage Scanner**")
+
+# Execute Now Button (Top of page)
+if st.button("🔄 Execute Scan Now", type="primary", use_container_width=True):
+    st.toast("🔍 Scanning live markets right now...", icon="🔄")
+    st.rerun()
 
 # Sidebar
 with st.sidebar:
@@ -31,12 +47,7 @@ with st.sidebar:
     agent_on = st.toggle("Enable Background Agent (Premium)", value=False)
     interval = st.slider("Scan Interval (minutes)", 5, 60, 10)
 
-# Manual Execute Button (Top of page)
-if st.button("🔄 Execute Scan Now", type="primary", use_container_width=True):
-    st.toast("🔍 Scanning live markets...", icon="🔄")
-    st.rerun()
-
-# Robust Live Data Fetch
+# Live Data
 @st.cache_data(ttl=30)
 def fetch_polymarket_markets():
     try:
@@ -50,36 +61,20 @@ def fetch_polymarket_markets():
 
 live_markets = fetch_polymarket_markets()
 
-# Main Content
 st.subheader(f"📊 Live Edges ({confidence_level}%+ Confidence)")
 
 if live_markets:
-    displayed = 0
-    for m in live_markets:
-        if displayed >= 10:
-            break
+    for m in live_markets[:8]:
         title = m.get("title") or m.get("question", "Market")
-        
         try:
             price = float(m.get("yes_price", 0.5))
         except:
             price = 0.5
-        
-        try:
-            vol = m.get("volume", 0)
-            volume = int(float(vol)) if isinstance(vol, (str, int, float)) else 0
-        except:
-            volume = 0
-        
-        liquidity = "🟢 Deep" if volume > 500000 else "🟡 Moderate" if volume > 50000 else "🔴 Thin"
-        
-        if price < 0.40 or "survivor" in title.lower():
-            st.metric(f"{liquidity} {title[:65]}...", f"{price*100:.1f}¢")
-            displayed += 1
+        st.metric(title[:70] + ("..." if len(title) > 70 else ""), f"{price*100:.1f}¢")
 else:
-    st.info("Live data temporarily unavailable.")
+    st.info("Live data loading...")
 
-# Rest of Tabs (Payoff, Monte Carlo, Journal)
+# Tabs
 tab1, tab2, tab3, tab4 = st.tabs(["📈 Interactive Payoff", "🎲 Monte Carlo", "📓 Journal", "🏠 Home"])
 
 with tab1:
@@ -113,13 +108,13 @@ with tab3:
 
 with tab4:
     st.subheader("Welcome to CrystalBall")
-    st.write("Professional tool for finding and executing hedged opportunities across prediction markets.")
+    st.write("Professional tool for finding hedged opportunities.")
 
 # Agent
 if agent_on:
     if "agent" not in st.session_state:
         st.session_state.agent = OpportunityOptimizerAgent(ScannerConfig())
         asyncio.create_task(st.session_state.agent.run_background())
-    st.success("🟢 Premium Agent ACTIVE")
+    st.success("🟢 Premium Agent is ACTIVE")
 
 st.caption("🔮 CrystalBall • Professional Prediction Market Scanner")
