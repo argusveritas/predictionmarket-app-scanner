@@ -28,22 +28,27 @@ with st.sidebar:
     agent_on = st.toggle("Enable Background Agent (Premium)", value=False)
     interval = st.slider("Scan Interval (minutes)", 5, 60, 10)
 
-# Live Data Fetch
-st.subheader("🔥 Live Edges")
-with st.spinner("Fetching live markets from Polymarket..."):
+# Live Polymarket Data Fetch
+async def fetch_live_markets():
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get("https://gamma-api.polymarket.com/markets?limit=30&active=true") as resp:
                 data = await resp.json()
-                live_markets = data[:8]
+                return data[:10]
     except:
-        live_markets = []
+        return []
 
-# Display Live Markets
-for m in live_markets[:5]:
-    title = m.get("title") or m.get("question", "Market")
-    price = float(m.get("yes_price", 0.5) or 0.5)
-    st.metric(title[:60] + "..." if len(title) > 60 else title, f"{price*100:.1f}¢")
+live_markets = asyncio.run(fetch_live_markets())
+
+# Main Content
+st.subheader("🔥 Live High-Confidence Edges")
+if live_markets:
+    for m in live_markets:
+        title = m.get("title") or m.get("question", "Market")
+        price = float(m.get("yes_price", 0.5) or 0.5)
+        st.metric(title[:50] + ("..." if len(title) > 50 else ""), f"{price*100:.1f}¢")
+else:
+    st.info("Using cached/mock data (Polymarket fetch failed)")
 
 # Tabs
 tab1, tab2, tab3, tab4 = st.tabs(["📈 Interactive Payoff", "🎲 Monte Carlo", "📓 Journal", "🏠 Home"])
@@ -64,7 +69,7 @@ with tab1:
     st.plotly_chart(fig, use_container_width=True)
 
 with tab2:
-    st.subheader("Monte Carlo Simulation")
+    st.subheader("🎲 Monte Carlo Simulation")
     if st.button("Run Simulation"):
         pnls = np.random.normal(82, 290, 10000)
         st.metric("Expected P&L", f"${pnls.mean():.0f}")
@@ -72,7 +77,7 @@ with tab2:
         st.metric("95% VaR", f"${np.percentile(pnls, 5):.0f}")
 
 with tab3:
-    st.subheader("Trade Journal")
+    st.subheader("📓 Trade Journal")
     journal = TradeJournal()
     if st.button("Log This Edge"):
         journal.log_trade({"event_name": "Survivor S50 Devens"}, winner_size)
@@ -80,8 +85,7 @@ with tab3:
 
 with tab4:
     st.subheader("Welcome to CrystalBall")
-    st.write("Professional tool for finding hedged opportunities in prediction markets.")
-    st.info("The app now pulls **live data** from Polymarket and uses your risk settings.")
+    st.write("Professional tool for finding and executing hedged opportunities in prediction markets.")
 
 # Agent
 if agent_on:
