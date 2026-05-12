@@ -31,8 +31,13 @@ with st.sidebar:
     agent_on = st.toggle("Enable Background Agent (Premium)", value=False)
     interval = st.slider("Scan Interval (minutes)", 5, 60, 10)
 
+# Manual Execute Button (Top of page)
+if st.button("🔄 Execute Scan Now", type="primary", use_container_width=True):
+    st.toast("🔍 Scanning live markets...", icon="🔄")
+    st.rerun()
+
 # Robust Live Data Fetch
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=30)
 def fetch_polymarket_markets():
     try:
         async def _fetch():
@@ -55,34 +60,26 @@ if live_markets:
             break
         title = m.get("title") or m.get("question", "Market")
         
-        # Robust price extraction
         try:
             price = float(m.get("yes_price", 0.5))
         except:
             price = 0.5
         
-        # Robust volume extraction
         try:
-            vol_str = m.get("volume", "0")
-            volume = int(float(vol_str)) if vol_str else 0
+            vol = m.get("volume", 0)
+            volume = int(float(vol)) if isinstance(vol, (str, int, float)) else 0
         except:
             volume = 0
         
-        # Liquidity indicator
-        if volume > 500000:
-            liquidity = "🟢 Deep"
-        elif volume > 50000:
-            liquidity = "🟡 Moderate"
-        else:
-            liquidity = "🔴 Thin"
+        liquidity = "🟢 Deep" if volume > 500000 else "🟡 Moderate" if volume > 50000 else "🔴 Thin"
         
         if price < 0.40 or "survivor" in title.lower():
             st.metric(f"{liquidity} {title[:65]}...", f"{price*100:.1f}¢")
             displayed += 1
 else:
-    st.info("Live data temporarily unavailable — showing example edges.")
+    st.info("Live data temporarily unavailable.")
 
-# Tabs (Interactive Payoff, Monte Carlo, Journal, Home) - same as before
+# Rest of Tabs (Payoff, Monte Carlo, Journal)
 tab1, tab2, tab3, tab4 = st.tabs(["📈 Interactive Payoff", "🎲 Monte Carlo", "📓 Journal", "🏠 Home"])
 
 with tab1:
@@ -116,7 +113,7 @@ with tab3:
 
 with tab4:
     st.subheader("Welcome to CrystalBall")
-    st.write("Professional tool for finding hedged opportunities across prediction markets.")
+    st.write("Professional tool for finding and executing hedged opportunities across prediction markets.")
 
 # Agent
 if agent_on:
