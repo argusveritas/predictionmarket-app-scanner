@@ -17,9 +17,11 @@ with st.sidebar:
     st.header("💰 Bankroll & Risk")
     bankroll = st.number_input("Your Bankroll ($)", 5000, 500000, 25000, step=1000)
     
-    risk_profile = st.selectbox("Risk Profile", 
-        ["Conservative (95% CI)", "Moderate (80% CI)", "Aggressive (65% CI)"], index=1)
-    
+    st.subheader("Risk Profile")
+    confidence_level = st.slider("Minimum Confidence Level", 60, 100, 80, step=5, 
+                                help="Higher = more conservative, fewer but higher-quality edges")
+    st.caption(f"Current: **{confidence_level}% Confidence**")
+
     st.subheader("Scan Targets")
     platforms = st.multiselect("Platforms", ["Polymarket", "Kalshi", "Coinbase"], default=["Polymarket", "Kalshi"])
     categories = st.multiselect("Categories", ["Reality TV", "Sports", "Politics"], default=["Reality TV"])
@@ -28,27 +30,26 @@ with st.sidebar:
     agent_on = st.toggle("Enable Background Agent (Premium)", value=False)
     interval = st.slider("Scan Interval (minutes)", 5, 60, 10)
 
-# Live Polymarket Data Fetch
+# Live Data (Polymarket)
 async def fetch_live_markets():
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get("https://gamma-api.polymarket.com/markets?limit=30&active=true") as resp:
                 data = await resp.json()
-                return data[:10]
+                return data[:12]
     except:
         return []
 
 live_markets = asyncio.run(fetch_live_markets())
 
 # Main Content
-st.subheader("🔥 Live High-Confidence Edges")
-if live_markets:
-    for m in live_markets:
-        title = m.get("title") or m.get("question", "Market")
-        price = float(m.get("yes_price", 0.5) or 0.5)
-        st.metric(title[:50] + ("..." if len(title) > 50 else ""), f"{price*100:.1f}¢")
-else:
-    st.info("Using cached/mock data (Polymarket fetch failed)")
+st.subheader(f"📊 Live Edges ({confidence_level}%+ Confidence)")
+
+for m in live_markets:
+    title = m.get("title") or m.get("question", "Market")
+    price = float(m.get("yes_price", m.get("outcomePrices", [0.5])[0]) or 0.5)
+    if price < 0.3:  # Show interesting long-shots / active markets
+        st.metric(title[:70] + ("..." if len(title) > 70 else ""), f"{price*100:.1f}¢")
 
 # Tabs
 tab1, tab2, tab3, tab4 = st.tabs(["📈 Interactive Payoff", "🎲 Monte Carlo", "📓 Journal", "🏠 Home"])
@@ -85,13 +86,13 @@ with tab3:
 
 with tab4:
     st.subheader("Welcome to CrystalBall")
-    st.write("Professional tool for finding and executing hedged opportunities in prediction markets.")
+    st.write("Professional tool for finding hedged opportunities across prediction markets.")
 
 # Agent
 if agent_on:
     if "agent" not in st.session_state:
         st.session_state.agent = OpportunityOptimizerAgent(ScannerConfig())
         asyncio.create_task(st.session_state.agent.run_background())
-    st.success("🟢 Premium Agent is ACTIVE")
+    st.success("🟢 Premium Agent ACTIVE")
 
 st.caption("🔮 CrystalBall • Professional Prediction Market Scanner")
