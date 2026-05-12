@@ -18,8 +18,7 @@ with st.sidebar:
     bankroll = st.number_input("Your Bankroll ($)", 5000, 500000, 25000, step=1000)
     
     st.subheader("Risk Profile")
-    confidence_level = st.slider("Minimum Confidence Level", 60, 100, 80, step=5, 
-                                help="Higher = more conservative, fewer but higher-quality edges")
+    confidence_level = st.slider("Minimum Confidence Level", 60, 100, 80, step=5)
     st.caption(f"Current: **{confidence_level}% Confidence**")
 
     st.subheader("Scan Targets")
@@ -30,14 +29,15 @@ with st.sidebar:
     agent_on = st.toggle("Enable Background Agent (Premium)", value=False)
     interval = st.slider("Scan Interval (minutes)", 5, 60, 10)
 
-# Live Data (Polymarket)
+# Robust Live Polymarket Fetch
 async def fetch_live_markets():
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get("https://gamma-api.polymarket.com/markets?limit=30&active=true") as resp:
+            async with session.get("https://gamma-api.polymarket.com/markets?limit=40&active=true") as resp:
                 data = await resp.json()
-                return data[:12]
-    except:
+                return data
+    except Exception as e:
+        st.error(f"Polymarket fetch failed: {str(e)[:100]}")
         return []
 
 live_markets = asyncio.run(fetch_live_markets())
@@ -45,11 +45,26 @@ live_markets = asyncio.run(fetch_live_markets())
 # Main Content
 st.subheader(f"📊 Live Edges ({confidence_level}%+ Confidence)")
 
-for m in live_markets:
-    title = m.get("title") or m.get("question", "Market")
-    price = float(m.get("yes_price", m.get("outcomePrices", [0.5])[0]) or 0.5)
-    if price < 0.3:  # Show interesting long-shots / active markets
-        st.metric(title[:70] + ("..." if len(title) > 70 else ""), f"{price*100:.1f}¢")
+if live_markets:
+    displayed = 0
+    for m in live_markets:
+        if displayed >= 8:
+            break
+        title = m.get("title") or m.get("question", "Market")
+        
+        # Robust price extraction
+        if isinstance(m.get("yes_price"), (int, float)):
+            price = float(m["yes_price"])
+        elif m.get("outcomePrices") and isinstance(m["outcomePrices"], list):
+            price = float(m["outcomePrices"][0])
+        else:
+            price = 0.5
+        
+        if price < 0.35 or "survivor" in title.lower() or "devens" in title.lower():  # Highlight interesting ones
+            st.metric(title[:65] + ("..." if len(title) > 65 else ""), f"{price*100:.1f}¢")
+            displayed += 1
+else:
+    st.info("Using fallback data (live fetch had issues)")
 
 # Tabs
 tab1, tab2, tab3, tab4 = st.tabs(["📈 Interactive Payoff", "🎲 Monte Carlo", "📓 Journal", "🏠 Home"])
