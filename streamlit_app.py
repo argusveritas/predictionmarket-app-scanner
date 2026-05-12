@@ -2,10 +2,9 @@ import streamlit as st
 import asyncio
 from config.settings import ScannerConfig
 from core.opportunity_optimizer_agent import OpportunityOptimizerAgent
+from core.hedge_calculator import HedgeCalculator
 from core.risk_manager import RiskManager
 from core.journal import TradeJournal
-from core.hedge_calculator import HedgeCalculator
-
 st.set_page_config(page_title="Prediction Arb Scanner", layout="wide")
 st.title("🚀 Prediction Market Arb Scanner - MVP v1.0")
 
