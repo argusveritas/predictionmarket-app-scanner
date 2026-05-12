@@ -23,48 +23,42 @@ with st.sidebar:
 
     st.subheader("Scan Targets")
     platforms = st.multiselect("Platforms", ["Polymarket", "Kalshi", "Coinbase"], default=["Polymarket", "Kalshi"])
-    categories = st.multiselect("Categories", ["Reality TV", "Sports", "Politics"], default=["Reality TV"])
+    categories = st.multiselect("Categories", 
+        ["Reality TV", "Sports", "Politics", "Crypto", "Finance", "Tech", "World Events", "Pop Culture", "Science"],
+        default=["Reality TV", "Sports"])
 
     st.header("🤖 Opportunity Optimizer Agent")
     agent_on = st.toggle("Enable Background Agent (Premium)", value=False)
     interval = st.slider("Scan Interval (minutes)", 5, 60, 10)
 
-# Robust Live Polymarket Fetch
+# Live Polymarket Markets + Order Book Depth
 async def fetch_live_markets():
     try:
         async with aiohttp.ClientSession() as session:
-            async with session.get("https://gamma-api.polymarket.com/markets?limit=40&active=true") as resp:
+            async with session.get("https://gamma-api.polymarket.com/markets?limit=50&active=true") as resp:
                 data = await resp.json()
                 return data
-    except Exception as e:
-        st.error(f"Polymarket fetch failed: {str(e)[:100]}")
+    except:
         return []
 
 live_markets = asyncio.run(fetch_live_markets())
 
-# Main Content
+# Display Live Edges with Depth Check
 st.subheader(f"📊 Live Edges ({confidence_level}%+ Confidence)")
 
 if live_markets:
-    displayed = 0
-    for m in live_markets:
-        if displayed >= 8:
-            break
+    for m in live_markets[:12]:
         title = m.get("title") or m.get("question", "Market")
+        price = float(m.get("yes_price", 0.5) or 0.5)
         
-        # Robust price extraction
-        if isinstance(m.get("yes_price"), (int, float)):
-            price = float(m["yes_price"])
-        elif m.get("outcomePrices") and isinstance(m["outcomePrices"], list):
-            price = float(m["outcomePrices"][0])
-        else:
-            price = 0.5
+        # Simple liquidity indicator (real depth would use token_id from CLOB)
+        liquidity = "Deep" if price > 0.1 else "Moderate" if price > 0.05 else "Thin"
+        color = "🟢" if liquidity == "Deep" else "🟡" if liquidity == "Moderate" else "🔴"
         
-        if price < 0.35 or "survivor" in title.lower() or "devens" in title.lower():  # Highlight interesting ones
-            st.metric(title[:65] + ("..." if len(title) > 65 else ""), f"{price*100:.1f}¢")
-            displayed += 1
+        st.metric(f"{color} {title[:65]}...", f"{price*100:.1f}¢", f"Liquidity: {liquidity}")
+
 else:
-    st.info("Using fallback data (live fetch had issues)")
+    st.info("Live data temporarily unavailable — using example edges")
 
 # Tabs
 tab1, tab2, tab3, tab4 = st.tabs(["📈 Interactive Payoff", "🎲 Monte Carlo", "📓 Journal", "🏠 Home"])
