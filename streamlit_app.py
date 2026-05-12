@@ -32,7 +32,7 @@ with st.sidebar:
     interval = st.slider("Scan Interval (minutes)", 5, 60, 10)
 
 # Robust Live Data Fetch
-@st.cache_data(ttl=60)  # Cache for 1 minute
+@st.cache_data(ttl=60)
 def fetch_polymarket_markets():
     try:
         async def _fetch():
@@ -53,11 +53,22 @@ if live_markets:
     for m in live_markets:
         if displayed >= 10:
             break
-        title = m.get("title") or m.get("question", "Unknown Market")
-        price = float(m.get("yes_price", 0.5))
+        title = m.get("title") or m.get("question", "Market")
         
-        # Improved Liquidity Logic
-        volume = int(m.get("volume", 0))
+        # Robust price extraction
+        try:
+            price = float(m.get("yes_price", 0.5))
+        except:
+            price = 0.5
+        
+        # Robust volume extraction
+        try:
+            vol_str = m.get("volume", "0")
+            volume = int(float(vol_str)) if vol_str else 0
+        except:
+            volume = 0
+        
+        # Liquidity indicator
         if volume > 500000:
             liquidity = "🟢 Deep"
         elif volume > 50000:
@@ -65,13 +76,13 @@ if live_markets:
         else:
             liquidity = "🔴 Thin"
         
-        if price < 0.40 or "survivor" in title.lower():   # Highlight interesting edges
-            st.metric(f"{liquidity} {title[:60]}...", f"{price*100:.1f}¢")
+        if price < 0.40 or "survivor" in title.lower():
+            st.metric(f"{liquidity} {title[:65]}...", f"{price*100:.1f}¢")
             displayed += 1
 else:
-    st.warning("Could not fetch live data. Showing example edges.")
+    st.info("Live data temporarily unavailable — showing example edges.")
 
-# Tabs
+# Tabs (Interactive Payoff, Monte Carlo, Journal, Home) - same as before
 tab1, tab2, tab3, tab4 = st.tabs(["📈 Interactive Payoff", "🎲 Monte Carlo", "📓 Journal", "🏠 Home"])
 
 with tab1:
@@ -79,7 +90,6 @@ with tab1:
     winner_size = st.slider("Winner Yes Position Size ($)", 50, 2000, 100, step=50)
     hedge_ratio = HedgeCalculator.insurance_hedge_ratio(0.014, 0.64)
     hedge_size = round(winner_size * hedge_ratio)
-    
     st.write(f"**Hedge Size**: ${hedge_size} on Ep12 Elimination")
     
     scenarios = ["Elim Ep12 (64%)", "Survives No Win", "Devens Wins"]
@@ -106,7 +116,7 @@ with tab3:
 
 with tab4:
     st.subheader("Welcome to CrystalBall")
-    st.write("Professional tool for finding and executing hedged opportunities across prediction markets.")
+    st.write("Professional tool for finding hedged opportunities across prediction markets.")
 
 # Agent
 if agent_on:
