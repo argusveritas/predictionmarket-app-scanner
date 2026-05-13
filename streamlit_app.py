@@ -12,7 +12,7 @@ st.set_page_config(page_title="CrystalBall • Prediction Arb Scanner", layout="
 st.title("🔮 CrystalBall")
 st.caption("**Live Multi-Platform Prediction Market Arbitrage Scanner**")
 
-# Prominent Execute Button (clean clickable box)
+# Prominent Execute Button (clean clickable box at top)
 col1, col2 = st.columns([4, 1])
 with col1:
     if st.button("🔄 Execute Fresh Scan Now", type="primary", use_container_width=True):
@@ -64,7 +64,7 @@ def fetch_all_markets():
     except:
         pass
 
-    # Kalshi (covers Coinbase predictions too)
+    # Kalshi (covers Coinbase too)
     try:
         async def _kalshi():
             async with aiohttp.ClientSession() as session:
@@ -85,7 +85,7 @@ def fetch_all_markets():
 
 all_markets = fetch_all_markets()
 
-# Live Edges Table with Hedge Suggestion
+# Live Edges Table
 st.subheader(f"📊 Live Edges ({confidence_level}%+ Confidence)")
 
 if all_markets:
@@ -94,7 +94,7 @@ if all_markets:
         if m["price"] < 0.40 or m["volume"] > 50000:
             liquidity = "Deep" if m["volume"] > 500000 else "Moderate" if m["volume"] > 50000 else "Thin"
             hedge_suggestion = "Ep12 Elim / Next Round" if "survivor" in m["contract"].lower() else "Related Granular"
-            est_pnl = "$9,700" if m["price"] < 0.02 else "$4,800"  # simplified example
+            est_pnl = "$9,700" if m["price"] < 0.02 else "$4,800"
             table_data.append({
                 "Contract": m["contract"][:65] + ("..." if len(m["contract"]) > 65 else ""),
                 "Source": m["source"],
@@ -109,14 +109,14 @@ if all_markets:
 else:
     st.info("Live data loading...")
 
-# News Feed (restored)
+# News Feed
 st.subheader("📰 Market News & Changes")
 st.write("• Devens Ep12 price moved +6¢ in last hour")
 st.write("• Kalshi vs Polymarket divergence on crypto thresholds")
 st.write("• High volume spike on American Idol long-shots")
 st.write("• Note: Casinos/sportsbooks have props but no true CLOB depth like Polymarket/Kalshi")
 
-# Tabs (fully restored)
+# Tabs
 tab1, tab2, tab3, tab4 = st.tabs(["📈 Interactive Payoff", "🎲 Monte Carlo", "📓 Journal", "🏠 Home"])
 
 with tab1:
