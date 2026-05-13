@@ -3,7 +3,6 @@ import asyncio
 import aiohttp
 import pandas as pd
 import numpy as np
-import plotly.graph_objects as go
 from config.settings import ScannerConfig
 from core.hedge_calculator import HedgeCalculator
 from core.journal import TradeJournal
@@ -12,19 +11,19 @@ st.set_page_config(page_title="CrystalBall • Prediction Arb Scanner", layout="
 st.title("🔮 CrystalBall")
 st.caption("**Live Multi-Platform Prediction Market Arbitrage Scanner**")
 
-# Prominent Execute Button (clean clickable box at top)
+# Prominent Execute Button
 col1, col2 = st.columns([4, 1])
 with col1:
     if st.button("🔄 Execute Fresh Scan Now", type="primary", use_container_width=True):
         st.cache_data.clear()
-        st.toast("🔍 Scanning Polymarket + Kalshi for edges...", icon="🔄")
+        st.toast("🔍 Scanning Polymarket + Kalshi...", icon="🔄")
         st.rerun()
 
 with col2:
     if st.button("🔄 Refresh All"):
         st.rerun()
 
-# Sidebar
+# Sidebar (unchanged)
 with st.sidebar:
     st.header("💰 Bankroll & Risk")
     bankroll = st.number_input("Your Bankroll ($)", 5000, 500000, 25000, step=1000)
@@ -47,7 +46,6 @@ with st.sidebar:
 @st.cache_data(ttl=45)
 def fetch_all_markets():
     data = []
-    # Polymarket
     try:
         async def _pm():
             async with aiohttp.ClientSession() as session:
@@ -64,7 +62,6 @@ def fetch_all_markets():
     except:
         pass
 
-    # Kalshi (covers Coinbase too)
     try:
         async def _kalshi():
             async with aiohttp.ClientSession() as session:
@@ -85,7 +82,6 @@ def fetch_all_markets():
 
 all_markets = fetch_all_markets()
 
-# Live Edges Table
 st.subheader(f"📊 Live Edges ({confidence_level}%+ Confidence)")
 
 if all_markets:
@@ -105,33 +101,42 @@ if all_markets:
             })
     
     df = pd.DataFrame(table_data)
-    st.dataframe(df, use_container_width=True, hide_index=True)
+    selected = st.dataframe(df, use_container_width=True, hide_index=True, on_select="rerun")
+
+    # Clickable details
+    if selected and len(selected["selection"]["rows"]) > 0:
+        row = selected["selection"]["rows"][0]
+        selected_row = table_data[row]
+        st.subheader(f"📌 Arbitrage Details: {selected_row['Contract']}")
+        st.write(f"**Source**: {selected_row['Source']}")
+        st.write(f"**Price**: {selected_row['Price']}")
+        st.write(f"**Suggested Counter**: {selected_row['Suggested Counter']}")
+        st.write(f"**Est. P&L on $100 position**: {selected_row['Est. P&L ($100 position)']}")
+        st.success("Full hedge math and risk analysis would appear here in production.")
 else:
-    st.info("Live data loading...")
+    st.info("No strong edges detected. Try 'Execute Fresh Scan Now'.")
 
-# News Feed
-st.subheader("📰 Market News & Changes")
-st.write("• Devens Ep12 price moved +6¢ in last hour")
-st.write("• Kalshi vs Polymarket divergence on crypto thresholds")
-st.write("• High volume spike on American Idol long-shots")
-st.write("• Note: Casinos/sportsbooks have props but no true CLOB depth like Polymarket/Kalshi")
-
-# Tabs
+# Tabs (restored)
 tab1, tab2, tab3, tab4 = st.tabs(["📈 Interactive Payoff", "🎲 Monte Carlo", "📓 Journal", "🏠 Home"])
 
 with tab1:
-    st.subheader("Survivor S50 - Rick Devens Example")
-    winner_size = st.slider("Winner Yes Position Size ($)", 50, 2000, 100, step=50)
-    hedge_ratio = HedgeCalculator.insurance_hedge_ratio(0.014, 0.64)
-    hedge_size = round(winner_size * hedge_ratio)
-    st.write(f"**Hedge Size**: ${hedge_size} on Ep12 Elimination")
+    st.subheader("Interactive Payoff Table")
+    winner_size = st.slider("Initial Position Size ($)", 50, 2000, 100, step=50)
+    hedge_price_steps = st.slider("Hedge Price Increments (¢)", 10, 50, 20, step=10)
     
-    scenarios = ["Elim Ep12 (64%)", "Survives No Win", "Devens Wins"]
-    outcomes = [0, -winner_size - hedge_size, round(winner_size * (1/0.014 - 1) - hedge_size)]
-    
-    fig = go.Figure(data=[go.Bar(x=scenarios, y=outcomes, marker_color=["#28a745", "#ffc107", "#ffd700"])])
-    fig.update_layout(title="Net P&L by Outcome", yaxis_title="Profit / Loss ($)", height=450)
-    st.plotly_chart(fig, use_container_width=True)
+    st.write("**Payoff Table** (different hedge price outcomes)")
+    data = []
+    for step in range(30, 81, hedge_price_steps):
+        hedge_ratio = HedgeCalculator.insurance_hedge_ratio(0.014, step/100)
+        hedge_size = round(winner_size * hedge_ratio)
+        win_pnl = round(winner_size * (1/0.014 - 1) - hedge_size)
+        data.append({
+            "Hedge Price": f"{step}¢",
+            "Hedge Size": f"${hedge_size}",
+            "Elim Outcome": "$0 (breakeven)",
+            "Devens Wins": f"${win_pnl}"
+        })
+    st.dataframe(pd.DataFrame(data), use_container_width=True, hide_index=True)
 
 with tab2:
     st.subheader("🎲 Monte Carlo Simulation")
